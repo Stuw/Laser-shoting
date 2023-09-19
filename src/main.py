@@ -330,6 +330,14 @@ class Shooting:
 		self.check_shot(laser_mark)
 
 
+	def on_frame_mouse_callback(self, action, x, y, flags):
+		if action == cv2.EVENT_LBUTTONDOWN or (flags & cv2.EVENT_FLAG_LBUTTON and action == cv2.EVENT_MOUSEMOVE):
+			log.info(f"New target position ({x}, {y}), radius {self.radius}")
+			self.center = (int(x), int(y))
+			self.top = self.get_top(args.area_scale)
+			self.bottom = self.get_bottom(args.area_scale)
+
+
 	def run(self):
 		cv2.namedWindow(RESULT_WND_NAME, 1)
 
@@ -339,6 +347,8 @@ class Shooting:
 		self.reset()
 
 		#cv2.setMouseCallback(RESULT_WND_NAME, mouse_callback, self)
+		if self.args.debug:
+			cv2.setMouseCallback(FRAME_WND_NAME, lambda action, x, y, flags, *userdata: self.on_frame_mouse_callback(action, x, y, flags))
 
 		cv2.imshow(RESULT_WND_NAME, self.target_image)
 
