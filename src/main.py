@@ -30,6 +30,15 @@ Y = 1
 SHOT_STATE_FIRE = True
 SHOT_STATE_NONE = False
 
+FRAME_WND_NAME = "Frame"
+RESULT_WND_NAME = "Result"
+
+
+def on_trackbar(val):
+	alpha = val / alpha_slider_max
+	beta = ( 1.0 - alpha )
+	dst = cv.addWeighted(src1, alpha, src2, beta, 0.0)
+	cv.imshow(title_window, dst)
 
 def mouse_callback(action, x, y, flags, *userdata):
 	self = userdata[0]
@@ -46,12 +55,43 @@ def mouse_callback(action, x, y, flags, *userdata):
 		self.update_score(shot, dist)
 
 
+class CameraProperty:
+	def __init__(self, camera, window_name, name, prop, min_val = 0, max_val = 255):
+		self.camera = camera
+		self.window_name = window_name
+		self.name = name
+		self.property = prop
+		self.min_val = min_val
+		self.max_val = max_val
+
+		log.info(f"Create brighness trackbar for {self.window_name}")
+		value = int(self.camera.get(self.property))
+		cv2.createTrackbar(self.name, self.window_name , value, self.max_val, lambda x: self.on_trackbar(x))
+
+
+	def on_trackbar(self, val):
+		if self.min_val and val < self.min_val:
+			return
+		self.camera.set(self.property, int(val))
+
+
+class CameraSettings:
+	def __init__(self, camera, window_name):
+		self.camera = camera
+		self.window_name = window_name
+		self.brightness = CameraProperty(camera, window_name, "Brightness", cv2.CAP_PROP_BRIGHTNESS, min_val = 30)
+		#self.contrast = CameraProperty(camera, window_name, "Contrast", cv2.CAP_PROP_CONTRAST, max_val = 10)
+		#self.saturation = CameraProperty(camera, window_name, "Saturation", cv2.CAP_PROP_SATURATION, max_val = 200)
+		#self.gain = CameraProperty(camera, window_name, "Gain", cv2.CAP_PROP_GAIN)
+
+
 class Shooting:
 	def __init__(self, args):
 		self.args = args
 
 		# Camera
 		self.camera = None
+		self.camera_settings = None
 		self.img_width = args.width
 		self.img_height = args.height
 
@@ -88,6 +128,9 @@ class Shooting:
 		self.font = cv2.FONT_HERSHEY_SIMPLEX
 
 
+	#@staticmethod
+	#def on_settings_changed(
+
 	#####################################
 
 	def sound_shot(self):
@@ -121,10 +164,10 @@ class Shooting:
 		self.camera.set(cv2.CAP_PROP_FRAME_WIDTH, self.img_width)
 		self.camera.set(cv2.CAP_PROP_FRAME_HEIGHT, self.img_height)
 
-		# we capture the first frame for the camera to adjust itself to the exposure
-		#ret_val , cap_for_exposure = self.camera.read()
-		#self.camera.set(cv2.CAP_PROP_AUTO_EXPOSURE, 0.75)
-		#self.camera.set(cv2.CAP_PROP_EXPOSURE , -1)
+		if self.args.debug:
+			ret_val, frame = self.camera.read()
+			cv2.imshow(FRAME_WND_NAME, frame)
+			self.camera_settings = CameraSettings(self.camera, FRAME_WND_NAME)
 
 
 	def init_target(self):
@@ -147,7 +190,7 @@ class Shooting:
 	def draw_shot(self, shot):
 		cv2.circle(self.target_image, shot, 5, (60,60,255),10)
 		cv2.circle(self.target_image, shot, 10, (120,120,120),1)
-		cv2.imshow("Result", self.target_image)
+		cv2.imshow(RESULT_WND_NAME, self.target_image)
 
 
 	def show_score(self):
@@ -159,7 +202,7 @@ class Shooting:
 		cv2.putText(self.target_image, text, org, self.font, 
 			self.font_scale, self.draw_color, self.text_thickness, cv2.LINE_AA)
 
-		cv2.imshow("Result", self.target_image)
+		cv2.imshow(RESULT_WND_NAME, self.target_image)
 
 
 	def draw_borders(self, frame):
@@ -183,7 +226,7 @@ class Shooting:
 		self.draw_borders(frame)
 
 		if self.args.debug:
-			cv2.imshow("Frame", frame)
+			cv2.imshow(FRAME_WND_NAME, frame)
 
 		# Crop
 		frame = frame[self.top[Y]:self.bottom[Y], self.top[X]:self.bottom[X]]
@@ -288,15 +331,16 @@ class Shooting:
 
 
 	def run(self):
+		cv2.namedWindow(RESULT_WND_NAME, 1)
+
 		self.init_camera()
 		self.init_target()
 
 		self.reset()
 
-		cv2.namedWindow("Result", 1)
-		#cv2.setMouseCallback("Result", mouse_callback, self)
+		#cv2.setMouseCallback(RESULT_WND_NAME, mouse_callback, self)
 
-		cv2.imshow("Result", self.target_image)
+		cv2.imshow(RESULT_WND_NAME, self.target_image)
 
 		while True:
 			if cv2.waitKey(1) >= 0:
