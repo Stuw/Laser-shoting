@@ -78,6 +78,7 @@ class Shooting:
 		self.shot_timeout_ms = int(args.timeout * 1000)
 		self.last_shot_time = None
 		self.last_shot_state = SHOT_STATE_FIRE
+		self.round_timeout_ms = int(args.round_timeout * 1000)
 
 		# Constants
 		self.line_thickness = 1
@@ -226,14 +227,26 @@ class Shooting:
 			self.reset()
 
 
+	def is_timout_expired(self, check_time, timeout_ms):
+		end_time = time.time()
+		exec_time = (end_time - check_time) * 1000
+
+		if timeout_ms and exec_time < timeout_ms:
+			return False
+
+		return True
+
+
 	def is_shot_allowed(self):
 		if not self.last_shot_time:
 			return self.last_shot_state != SHOT_STATE_FIRE
 
-		end_time = time.time()
-		exec_time = (end_time - self.last_shot_time) * 1000
-		if self.shot_timeout_ms and exec_time < self.shot_timeout_ms:
+		if not self.is_timout_expired(self.last_shot_time, self.shot_timeout_ms):
 			return False
+
+		if self.shots_count == 0:
+			if not self.is_timout_expired(self.last_shot_time, self.round_timeout_ms):
+				return False
 
 		return self.last_shot_state != SHOT_STATE_FIRE
 
@@ -320,6 +333,7 @@ if __name__ == '__main__':
 		parser.add_argument("-s", "--shots",      default=7,   type=int)
 		parser.add_argument("-a", "--area-scale", default=2,   type=float)
 		parser.add_argument("-t", "--timeout",    default=0,   type=float, help="Timeout between shots in seconds")
+		parser.add_argument("--round_timeout",    default=3,   type=float, help="Timeout after last shot before new round")
 		parser.add_argument("-v", "--video",      default=0)
 
 		args = parser.parse_args()
