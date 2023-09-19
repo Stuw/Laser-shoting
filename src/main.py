@@ -309,6 +309,7 @@ class Shooting:
 			except:
 				raise
 
+		self.camera.release()
 		cv2.destroyAllWindows()
 
 
