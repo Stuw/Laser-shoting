@@ -161,11 +161,20 @@ class Shooting:
 			return
 
 		self.camera = cv2.VideoCapture(self.args.video)
+		if not self.camera.isOpened():
+			raise Exception("Can't open video device")
+
+		log.info(f"Camera backend: {self.camera.getBackendName()}")
+
 		self.camera.set(cv2.CAP_PROP_FRAME_WIDTH, self.img_width)
 		self.camera.set(cv2.CAP_PROP_FRAME_HEIGHT, self.img_height)
 
+		ret_val, frame = self.camera.read()
+		if not ret_val:
+			log.error("Please check that webcam is available")
+			raise Exception("Can't read frame from camera")
+
 		if self.args.debug:
-			ret_val, frame = self.camera.read()
 			cv2.imshow(FRAME_WND_NAME, frame)
 			self.camera_settings = CameraSettings(self.camera, FRAME_WND_NAME)
 
@@ -401,6 +410,8 @@ if __name__ == '__main__':
 		res = main(args)
 	except SystemExit:
 		raise
-	except:
-		traceback.print_exc()
+	except Exception as e:
+		if args.debug:
+			traceback.print_exc()
+		log.error(f"Failure: {str(e)}")
 		sys.exit(-1)
